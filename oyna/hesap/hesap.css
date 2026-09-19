@@ -1,0 +1,199 @@
+/* NOBET: Otopark — Personel girisi (hesap sistemi)
+   Oyunun ana menusuyle ayni dil: CCTV cercevesi, P levhasi + NÖBET, uyari seridi, mono yazilar,
+   sagda egik kagit kart (menudeki park bileti yerine personel karti). */
+@font-face { font-family: "NRoboto"; src: url("Roboto-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "NRoboto"; src: url("Roboto-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "NMono"; src: url("DroidSansMono.woff2") format("woff2"); font-display: swap; }
+
+#hesap {
+  --h-ink: #eceae3; --h-dim: #8d8b84; --h-amber: #dca63b; --h-red: #d8453a; --h-line: #3c4044;
+  --h-fill: rgba(24, 26, 29, .86); --h-fill-hi: rgba(36, 39, 43, .92);
+  --h-paper: #ebe6d6; --h-paper-ink: #34332e; --h-blue: #2a5ea8;
+  --h-mono: "NMono", Consolas, "Courier New", monospace;
+  position: fixed; inset: 0; z-index: 5; overflow: hidden auto; color: var(--h-ink);
+  font-family: "NRoboto", "Segoe UI", Arial, sans-serif; text-align: left;
+  background: #050606 url("arka.jpg") center / cover no-repeat;
+  transition: opacity .6s ease;
+}
+#hesap[hidden] { display: none; }
+#hesap.kapaniyor { opacity: 0; pointer-events: none; }
+#hesap *, #hesap *::before, #hesap *::after { box-sizing: border-box; }
+
+/* --- Ekran etkileri: karartma, soldan golge, vinyet, tarama cizgileri, gren --- */
+#hesap .h-fx { position: fixed; inset: 0; pointer-events: none; }
+#hesap .h-fx.golge { background:
+  linear-gradient(90deg, rgba(0,0,0,.93) 0, rgba(0,0,0,.78) 34%, rgba(0,0,0,.25) 68%, rgba(0,0,0,.35) 100%),
+  rgba(0,0,0,.22); }
+#hesap .h-fx.vinyet { background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.85) 100%); }
+#hesap .h-fx.tarama { background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); }
+#hesap .h-fx.gren { opacity: .06; animation: h-gren .5s steps(3) infinite;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
+@keyframes h-gren { 0% { background-position: 0 0; } 33% { background-position: -40px 60px; } 66% { background-position: 70px -30px; } }
+
+/* --- CCTV cercevesi --- */
+#hesap .h-kose { position: fixed; width: 30px; height: 30px; border: 0 solid rgba(230,230,222,.85); pointer-events: none; }
+#hesap .h-kose.sol-ust { top: 16px; left: 16px; border-top-width: 2px; border-left-width: 2px; }
+#hesap .h-kose.sag-ust { top: 16px; right: 16px; border-top-width: 2px; border-right-width: 2px; }
+#hesap .h-kose.sol-alt { bottom: 16px; left: 16px; border-bottom-width: 2px; border-left-width: 2px; }
+#hesap .h-kose.sag-alt { bottom: 16px; right: 16px; border-bottom-width: 2px; border-right-width: 2px; }
+#hesap .h-ust { position: fixed; top: 22px; left: 42px; right: 42px; display: flex; justify-content: space-between; gap: 16px;
+  font: 15px/1 var(--h-mono); letter-spacing: .22em; color: rgba(236,234,227,.85); pointer-events: none; white-space: nowrap; }
+#hesap .h-rec { color: var(--h-red); }
+#hesap .h-rec::before { content: "● "; animation: h-blink 1.2s steps(2) infinite; }
+@keyframes h-blink { 50% { opacity: 0; } }
+#hesap .h-anasayfa { position: fixed; top: 50px; left: 42px; font: 12px/1 var(--h-mono); letter-spacing: .2em; color: var(--h-dim);
+  text-decoration: none; padding: 6px 0; }
+#hesap .h-anasayfa:hover { color: var(--h-amber); }
+#hesap .h-alt { position: fixed; bottom: 26px; left: 64px; font: 13px/1.3 var(--h-mono); letter-spacing: .26em;
+  color: rgba(141,139,132,.9); pointer-events: none; }
+/* Oyunun yuklenmesi: sag ustte saatin altinda (sol ustteki ANA SAYFA baginin karsisi) */
+#hesap .h-yukleme { position: fixed; top: 52px; right: 42px; display: flex; flex-direction: column; align-items: flex-end; gap: 7px;
+  font: 12px/1.3 var(--h-mono); letter-spacing: .18em; color: rgba(141,139,132,.9); pointer-events: none; }
+#hesap .h-yukleme .h-cubuk { width: 220px; height: 3px; background: rgba(255,255,255,.08); }
+#hesap .h-yukleme .h-cubuk div { height: 100%; width: 0; background: var(--h-amber); transition: width .25s; }
+#hesap .h-yukleme.bitti .h-cubuk { visibility: hidden; }
+#hesap .h-yukleme .hata { color: var(--h-red); letter-spacing: .06em; max-width: 46vw; text-align: right; }
+
+/* --- Sol sutun: baslik + form --- */
+#hesap .h-sutun { position: relative; width: min(470px, calc(100vw - 32px)); margin: 0 0 0 clamp(16px, 6.8vw, 130px);
+  min-height: 100%; padding: 100px 0 72px; display: flex; flex-direction: column; justify-content: center; }
+#hesap .h-baslik { display: flex; align-items: center; gap: 22px; }
+#hesap .h-levha { flex: none; width: 88px; height: 88px; border-radius: 9px; background: var(--h-blue); border: 3px solid #f2f2f2;
+  display: flex; align-items: center; justify-content: center; font: 700 62px/1 "NRoboto", Arial, sans-serif; color: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+#hesap .h-kelime b { display: block; font-weight: 700; font-size: 76px; line-height: .95; letter-spacing: .14em; color: var(--h-ink); }
+#hesap .h-kelime span { display: block; white-space: nowrap; margin: 6px 0 0 3px; font: 16px/1 var(--h-mono); letter-spacing: .42em; color: var(--h-amber); }
+#hesap .h-serit { height: 11px; margin: 20px 0 14px; width: 100%;
+  background: repeating-linear-gradient(-45deg, #e5a92e 0 10px, #111 10px 20px); opacity: .95; }
+#hesap .h-bolum { font: 15px/1.2 var(--h-mono); letter-spacing: .26em; color: var(--h-dim); margin-bottom: 30px; }
+#hesap .h-bolum b { color: var(--h-amber); font-weight: 400; }
+
+#hesap .h-sayfa[hidden] { display: none; }
+#hesap .h-sayfa h2 { margin: 0 0 6px; font: 700 22px/1.2 "NRoboto", Arial, sans-serif; letter-spacing: .08em; }
+#hesap .h-sayfa p.h-aciklama { margin: 0 0 20px; font-size: 15px; line-height: 1.55; color: #b6b3aa; }
+#hesap .h-sayfa p.h-aciklama b { color: var(--h-ink); font-weight: 400; }
+#hesap label.h-etiket { display: block; margin: 0 0 7px; font: 12px/1 var(--h-mono); letter-spacing: .24em; color: var(--h-dim); }
+#hesap .h-alan { position: relative; margin-bottom: 16px; }
+#hesap input.h-kutu { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--h-line); border-radius: 2px;
+  background: var(--h-fill); color: var(--h-ink); font: 17px "NRoboto", Arial, sans-serif; outline: none;
+  transition: border-color .15s, box-shadow .15s; }
+#hesap input.h-kutu::placeholder { color: #5f5d58; }
+#hesap input.h-kutu:focus { border-color: var(--h-amber); box-shadow: 0 0 0 1px rgba(220,166,59,.35), 0 0 18px rgba(220,166,59,.12); }
+#hesap input.h-kutu.sifre { padding-right: 86px; }
+#hesap input.h-kutu:-webkit-autofill { -webkit-text-fill-color: var(--h-ink); -webkit-box-shadow: 0 0 0 40px #181a1d inset; caret-color: var(--h-ink); }
+#hesap .h-goster { position: absolute; right: 6px; bottom: 7px; height: 34px; padding: 0 10px; border: 0; background: transparent;
+  font: 12px var(--h-mono); letter-spacing: .16em; color: var(--h-dim); cursor: pointer; }
+#hesap .h-goster:hover, #hesap .h-goster:focus-visible { color: var(--h-amber); outline: none; }
+#hesap .h-caps { display: none; margin: -8px 0 14px; font: 12px var(--h-mono); letter-spacing: .14em; color: var(--h-amber); }
+#hesap .h-caps.acik { display: block; }
+
+#hesap .h-satir { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 20px; flex-wrap: wrap; }
+#hesap .h-kutucuk { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
+  font: 13px var(--h-mono); letter-spacing: .16em; color: #aeaba2; }
+#hesap .h-kutucuk input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+#hesap .h-kutucuk i { width: 18px; height: 18px; border: 1px solid #5a5e62; background: var(--h-fill); display: inline-flex;
+  align-items: center; justify-content: center; }
+#hesap .h-kutucuk input:checked + i::after { content: ""; width: 10px; height: 10px; background: var(--h-amber); }
+#hesap .h-kutucuk input:focus-visible + i { border-color: var(--h-amber); }
+
+#hesap .h-bag { border: 0; background: none; padding: 4px 0; cursor: pointer; text-decoration: none;
+  font: 13px var(--h-mono); letter-spacing: .16em; color: #aeaba2; }
+#hesap .h-bag:hover, #hesap .h-bag:focus-visible { color: var(--h-amber); outline: none; }
+#hesap .h-bag b { color: var(--h-ink); font-weight: 400; }
+#hesap .h-bag:hover b { color: var(--h-amber); }
+
+/* Menudeki dugmeler gibi: koyu dolgu, ince cerceve, sola yasli kalin yazi */
+#hesap .h-dugme { position: relative; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 50px;
+  padding: 0 18px; border: 1px solid #45494e; border-radius: 2px; background: var(--h-fill-hi); cursor: pointer;
+  font: 700 17px "NRoboto", Arial, sans-serif; letter-spacing: .06em; color: var(--h-ink); text-align: left;
+  transition: border-color .15s, color .15s, background .15s; }
+#hesap .h-dugme::after { content: "›"; font-size: 24px; font-weight: 400; color: var(--h-dim); transition: transform .15s, color .15s; }
+#hesap .h-dugme::before { content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px; width: 3px; background: var(--h-amber);
+  transform: scaleY(0); transition: transform .15s; }
+#hesap .h-dugme:hover, #hesap .h-dugme:focus-visible { border-color: var(--h-amber); color: var(--h-amber); outline: none; background: rgba(44,40,30,.92); }
+#hesap .h-dugme:hover::after, #hesap .h-dugme:focus-visible::after { color: var(--h-amber); transform: translateX(3px); }
+#hesap .h-dugme:hover::before, #hesap .h-dugme:focus-visible::before { transform: scaleY(1); }
+#hesap .h-dugme:disabled { cursor: wait; color: var(--h-dim); border-color: var(--h-line); background: var(--h-fill); }
+#hesap .h-dugme:disabled::after { content: ""; }
+#hesap .h-alt-bag { margin-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* Mesaj: hata kirmizi, bilgi sari, basari yesil (sol kenar cizgisi) */
+#hesap .h-mesaj { display: none; margin: 0 0 18px; padding: 11px 14px; border-left: 3px solid var(--h-amber);
+  background: rgba(14,14,12,.78); font: 14px/1.5 "NRoboto", Arial, sans-serif; color: #e9d8b0; }
+#hesap .h-mesaj.acik { display: block; }
+#hesap .h-mesaj.hata { border-left-color: var(--h-red); color: #f0b3aa; }
+#hesap .h-mesaj.tamam { border-left-color: #6fae6a; color: #c3e2bd; }
+
+/* Giris sonrasi / oturum dogrulanirken */
+#hesap .h-bekle { font: 15px/1.6 var(--h-mono); letter-spacing: .2em; color: var(--h-dim); }
+#hesap .h-bekle b { display: block; margin-bottom: 6px; font: 700 26px/1.2 "NRoboto", Arial, sans-serif; letter-spacing: .08em; color: var(--h-ink); }
+#hesap .h-bekle em { font-style: normal; color: var(--h-amber); }
+#hesap .h-noktalar::after { content: ""; animation: h-nokta 1.2s steps(4) infinite; }
+@keyframes h-nokta { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+/* --- Sag: personel karti (menudeki park biletinin yerinde) --- */
+#hesap .h-kart { position: fixed; right: clamp(40px, 6.8vw, 130px); top: 50%; width: 360px; padding: 22px 26px 18px;
+  transform: translateY(-58%) rotate(-3deg); background: var(--h-paper); color: var(--h-paper-ink);
+  box-shadow: 0 14px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.35); font-family: var(--h-mono); pointer-events: none; }
+#hesap .h-kart::before { content: ""; position: absolute; top: 10px; left: 50%; width: 46px; height: 7px; margin-left: -23px;
+  border-radius: 4px; background: rgba(0,0,0,.25); box-shadow: inset 0 1px 2px rgba(0,0,0,.4); }
+#hesap .h-kart .k-bas { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; }
+#hesap .h-kart .k-bas b { font-weight: 400; font-size: 19px; letter-spacing: .16em; }
+#hesap .h-kart .k-bas span { font-size: 12px; }
+#hesap .h-kart .k-firma { margin-top: 4px; font-size: 11px; letter-spacing: .2em; opacity: .7; }
+#hesap .h-kart .k-cizgi { margin: 10px 0; font-size: 13px; letter-spacing: .1em; opacity: .55; white-space: nowrap; overflow: hidden; }
+#hesap .h-kart .k-govde { display: flex; gap: 16px; }
+#hesap .h-kart .k-foto { flex: none; width: 84px; height: 104px; background: #cfc9b6; border: 1px solid rgba(0,0,0,.25); overflow: hidden; }
+#hesap .h-kart .k-foto svg { display: block; width: 100%; height: 100%; }
+#hesap .h-kart dl { margin: 0; flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; align-content: start; font-size: 13px; }
+#hesap .h-kart dt { opacity: .62; letter-spacing: .08em; }
+#hesap .h-kart dd { margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#hesap .h-kart .k-barkod { font-size: 26px; line-height: 1; letter-spacing: -.02em; text-align: center; white-space: nowrap; overflow: hidden; }
+#hesap .h-kart .k-not { margin-top: 8px; font-size: 10.5px; line-height: 1.4; opacity: .6; }
+#hesap .h-kart .k-muhur { position: absolute; right: 18px; bottom: 58px; padding: 5px 10px; border: 2px solid rgba(176,40,32,.75);
+  border-radius: 3px; color: rgba(176,40,32,.8); font-size: 15px; letter-spacing: .2em; transform: rotate(-14deg);
+  transition: opacity .3s, transform .3s; }
+#hesap .h-kart .k-muhur.bos { opacity: 0; transform: rotate(-14deg) scale(1.4); }
+
+/* Oyun ici kucuk bildirim: kayit hesaba yazilamazsa (menudeki hesap satirinin ustunde) */
+#hesap-bildirim { position: fixed; right: 18px; bottom: 78px; z-index: 4; padding: 8px 12px; background: rgba(8,8,8,.8);
+  border-left: 3px solid #d8453a; font: 12px/1.4 "NMono", Consolas, monospace; letter-spacing: .12em; color: #f0b3aa;
+  pointer-events: none; opacity: 0; transition: opacity .4s; }
+#hesap-bildirim.acik { opacity: 1; }
+#hesap-bildirim.tamam { border-left-color: #6fae6a; color: #c3e2bd; }
+
+@media (max-width: 1080px) { #hesap .h-kart { display: none; } }
+/* Alcak ekran (720p dizustu): baslik ve kutular sikisir, alt satir kalkar; en uzun sayfa (kayit + mesaj) sigar */
+@media (max-height: 860px) {
+  #hesap .h-alt { display: none; }
+  #hesap .h-sutun { padding: 84px 0 28px; }
+  #hesap .h-baslik { gap: 16px; }
+  #hesap .h-levha { width: 60px; height: 60px; border-radius: 7px; font-size: 42px; }
+  #hesap .h-kelime b { font-size: 50px; }
+  #hesap .h-kelime span { margin-top: 5px; font-size: 13px; }
+  #hesap .h-serit { height: 9px; margin: 14px 0 10px; }
+  #hesap .h-bolum { font-size: 13px; margin-bottom: 16px; }
+  #hesap .h-sayfa h2 { font-size: 20px; margin-bottom: 4px; }
+  #hesap .h-sayfa p.h-aciklama { font-size: 14px; line-height: 1.45; margin-bottom: 14px; }
+  #hesap .h-mesaj { margin-bottom: 12px; padding: 8px 12px; font-size: 13.5px; }
+  #hesap label.h-etiket { margin-bottom: 6px; }
+  #hesap .h-alan { margin-bottom: 12px; }
+  #hesap input.h-kutu { height: 42px; font-size: 16px; }
+  #hesap .h-goster { bottom: 4px; }
+  #hesap .h-caps { margin: -5px 0 10px; }
+  #hesap .h-satir { margin: 0 0 14px; }
+  #hesap .h-dugme { height: 46px; }
+  #hesap .h-alt-bag { margin-top: 12px; }
+  #hesap .h-kart { transform: translateY(-54%) rotate(-3deg) scale(.9); }
+}
+@media (max-width: 640px) {
+  #hesap .h-ust { left: 28px; right: 28px; font-size: 12px; letter-spacing: .12em; }
+  #hesap .h-anasayfa { left: 28px; }
+  #hesap .h-yukleme { right: 28px; }
+  #hesap .h-alt { display: none; }
+  #hesap .h-levha { width: 56px; height: 56px; font-size: 40px; }
+  #hesap .h-kelime b { font-size: 46px; }
+  #hesap .h-kelime span { font-size: 11px; letter-spacing: .3em; }
+  #hesap .h-sutun { padding: 96px 0 32px; }
+  #hesap .h-tarih { display: none; }
+}

@@ -1,0 +1,4 @@
+Roboto (Regular, Bold) ve Droid Sans Mono — Google, Apache License 2.0
+https://www.apache.org/licenses/LICENSE-2.0
+Oyunun menülerindeki yazı tipleri (Assets/Resources/Fontlar); giriş sayfası için Latin + Türkçe
+karakterlere kırpılıp woff2'ye çevrildi (pyftsubset).

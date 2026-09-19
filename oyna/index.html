@@ -30,6 +30,7 @@
   .rec::before { content: "● "; animation: blink 1.2s steps(2) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
 </style>
+<link rel="stylesheet" href="hesap/hesap.css">
 </head>
 <body>
 <canvas id="unity-canvas" tabindex="-1"></canvas>
@@ -50,12 +51,18 @@
 <a id="back" class="link" href="../" hidden></a>
 <div id="rec" class="rec">REC</div>
 
+<!-- Ekran karti kullanilmiyorsa (yazilim cizimi) dusuk grafik + cozum uyarisi -->
+<script src="grafik.js"></script>
+<!-- Hesap sistemi (e-posta ile personel girisi): ayarlar bossa kapali, oyun kaydi tarayicida -->
+<script src="hesap-ayar.js"></script>
+<script src="hesap/hesap.js"></script>
 <script>
 (function () {
   var tr = (navigator.language || "").toLowerCase().indexOf("tr") === 0;
   var T = tr ? {
     loading: "YÜKLENİYOR", starting: "BAŞLIYOR", back: "‹ ANA SAYFA",
     hint: "<b>Klavye ve fare gerekir.</b> Oyunda ekrana tıklayınca fare kilitlenir; <b>Esc</b> fareyi bırakır ve oyunu duraklatır. Kayıt bu tarayıcıda tutulur.",
+    hintHesap: "<b>Klavye ve fare gerekir.</b> Oyunda ekrana tıklayınca fare kilitlenir; <b>Esc</b> fareyi bırakır ve oyunu duraklatır. Kayıt hesabında tutulur.",
     mobile: "Bu oyun <b>klavye ve fare</b> ile oynanır; telefon ve tablette kontroller çalışmaz. Bir bilgisayardan aç.",
     mobileGo: "YİNE DE AÇ",
     webgl: "Tarayıcın WebGL 2 desteklemiyor. Chrome, Edge ya da Firefox'un güncel sürümüyle dene.",
@@ -63,6 +70,7 @@
   } : {
     loading: "LOADING", starting: "STARTING", back: "‹ HOME",
     hint: "<b>Keyboard and mouse required.</b> Click the screen in game to lock the mouse; <b>Esc</b> releases it and pauses. Your save stays in this browser.",
+    hintHesap: "<b>Keyboard and mouse required.</b> Click the screen in game to lock the mouse; <b>Esc</b> releases it and pauses. Your save is kept in your account.",
     mobile: "This game is played with <b>keyboard and mouse</b>; the controls don't work on phones and tablets. Open it on a computer.",
     mobileGo: "OPEN ANYWAY",
     webgl: "Your browser doesn't support WebGL 2. Try an up-to-date Chrome, Edge or Firefox.",
@@ -74,7 +82,9 @@
   var status = document.getElementById("status");
   var progress = document.getElementById("progress");
   var canvas = document.getElementById("unity-canvas");
-  document.getElementById("hint").innerHTML = T.hint;
+  // Hesap sistemi acik: yukleme ekrani yerine personel girisi (hesap/hesap.js), ilerleme orada
+  var hesap = window.NobetHesap && window.NobetHesap.etkin ? window.NobetHesap : null;
+  document.getElementById("hint").innerHTML = hesap ? T.hintHesap : T.hint;
   status.textContent = T.loading;
 
   // Sitenin icindeyse (…/oyna/) ana sayfaya donus
@@ -83,23 +93,27 @@
 
   function fail(text) {
     status.innerHTML = '<span class="error">' + text + "</span>";
+    if (hesap) hesap.hata(text);
   }
 
   function start() {
     var probe = document.createElement("canvas");
     if (!probe.getContext("webgl2")) { fail(T.webgl); return; }
+    if (hesap) { hesap.baslat(); loading.hidden = true; }
+    if (window.NobetGrafik) window.NobetGrafik.uyar();
     var test = /[?&]test=1/.test(location.search);
     var config = {
       arguments: [],
-      dataUrl: "Build/a414d2288192296be545ef887472cd75.data.unityweb",
-      frameworkUrl: "Build/ce8f0c52647199fddfc4404ec37224e2.framework.js.unityweb",
-      codeUrl: "Build/5728dcc5e926a3e656400e08c38d3bf8.wasm.unityweb",
+      dataUrl: "Build/2fce6a9292ed485aa8ba332dee9f7ec6.data.unityweb",
+      frameworkUrl: "Build/32d82e9fe597a4c912fe3e43e3c1cf88.framework.js.unityweb",
+      codeUrl: "Build/cb6cbe8e01c6b74efa977dcddb03a116.wasm.unityweb",
       streamingAssetsUrl: "StreamingAssets",
       companyName: "Muhur Guvenlik",
       productName: "NOBET Otopark",
       productVersion: "0.1.0",
-      // PS1 gorunumu zaten dusuk cozunurlukte cizilir: yuksek DPI ekranda fazladan is yapma
-      devicePixelRatio: 1,
+      // PS1 gorunumu zaten dusuk cozunurlukte cizilir: yuksek DPI ekranda fazladan is yapma.
+      // Ekran karti kullanilmiyorsa (grafik.js) tuval kuculur: islemci daha az piksel cizer.
+      devicePixelRatio: window.NobetGrafik ? window.NobetGrafik.dpr() : 1,
       showBanner: function (msg, type) { if (type === "error") fail(msg); else console.warn(msg); }
     };
     // Iki ekran kartli dizustulerde guclu karti iste (2 = "high-performance"); tarayici yine de
@@ -108,17 +122,20 @@
     config.webglContextAttributes = { preserveDrawingBuffer: test, powerPreference: 2 };
 
     var script = document.createElement("script");
-    script.src = "Build/03642c11b2edbb36c20527d70e0ff4c8.loader.js";
+    script.src = "Build/5ce896d2ffb50900ce145cf6a538aedd.loader.js";
     script.onload = function () {
       createUnityInstance(canvas, config, function (p) {
         progress.style.width = Math.round(p * 100) + "%";
         status.textContent = (p >= 0.9 ? T.starting : T.loading) + "  " + Math.round(p * 100) + "%";
+        if (hesap) hesap.ilerleme(p);
       }).then(function (instance) {
         window.unityInstance = instance;
+        if (hesap) hesap.oyunYuklendi(instance);
         loading.hidden = true;
         back.hidden = true;
         document.getElementById("rec").hidden = true;
-        canvas.focus();
+        // Giris sayfasinda yazarken odak kutudan kacmasin; sayfa kapaninca hesap.js odaklar
+        if (!hesap) canvas.focus();
       }).catch(function (message) { fail(T.failed + message); });
     };
     script.onerror = function () { fail(T.failed + script.src); };
