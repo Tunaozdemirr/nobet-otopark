@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NÖBET: Otopark</title>
+<meta name="description" content="NÖBET: Otopark — yer altı otoparkında gece vardiyası. Kurulum yok: tarayıcıda oyna.">
+<meta property="og:title" content="NÖBET: Otopark">
+<meta property="og:description" content="Yer altı otoparkında gece vardiyası. Tarayıcıda oyna.">
+<meta property="og:image" content="img/otopark.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2307090a'/%3E%3Ctext x='16' y='24' font-family='Arial' font-weight='bold' font-size='22' text-anchor='middle' fill='%23e0a43a'%3EN%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #07090a;
+    --panel: #0e1413;
+    --line: #1f2b28;
+    --ink: #cfe0d8;
+    --dim: #7f948c;
+    --amber: #e0a43a;
+    --red: #c8352b;
+    --green: #7fd4a4;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    line-height: 1.55;
+  }
+  a { color: inherit; }
+  .mono { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; letter-spacing: .04em; }
+
+  /* ---- Ust bolum: guvenlik kamerasi goruntusu ---- */
+  .hero {
+    position: relative;
+    min-height: 88vh;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 16px 56px;
+    background: #000 url("img/otopark.jpg") center / cover no-repeat;
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+  .hero::before {   /* karartma + tarama cizgileri */
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.28) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, rgba(7,9,10,.35) 0%, rgba(7,9,10,.55) 55%, var(--bg) 100%);
+  }
+  .osd {
+    position: absolute; top: 16px; left: 16px; right: 16px;
+    display: flex; justify-content: space-between; gap: 12px;
+    font-size: 14px; color: var(--ink); opacity: .85;
+  }
+  .rec::before {
+    content: "●"; color: var(--red); margin-right: 6px;
+    animation: blink 1.2s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .lang {
+    font: inherit; font-size: 13px; color: var(--ink); background: rgba(14,20,19,.8);
+    border: 1px solid var(--line); border-radius: 3px; padding: 4px 10px; cursor: pointer;
+  }
+  .lang:hover { border-color: var(--dim); }
+  .osd-right { display: flex; gap: 14px; align-items: center; }
+  .hero-inner { position: relative; max-width: 1040px; margin: 0 auto; width: 100%; }
+  .series { color: var(--amber); font-size: 14px; letter-spacing: .3em; margin: 0 0 8px; }
+  h1 {
+    margin: 0; font-size: clamp(48px, 11vw, 112px); line-height: .95;
+    letter-spacing: .06em; font-weight: 800;
+  }
+  h1 span { display: block; font-size: .42em; letter-spacing: .32em; color: var(--dim); margin-top: 10px; }
+  .tagline { margin: 18px 0 28px; font-size: 18px; color: var(--ink); max-width: 560px; }
+  .hazard { height: 8px; max-width: 320px; margin: 0 0 28px;
+    background: repeating-linear-gradient(-45deg, var(--amber) 0 12px, #111 12px 24px); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 52px; padding: 0 26px; border-radius: 3px;
+    text-decoration: none; font-weight: 700; letter-spacing: .08em; font-size: 16px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { border-color: var(--dim); }
+  .btn.primary { background: var(--amber); border-color: var(--amber); color: #120c02; }
+  .btn.primary:hover { background: #f0b64c; }
+  .btn small { font-weight: 400; margin-left: 8px; opacity: .75; letter-spacing: 0; }
+  .btn[hidden] { display: none; }
+  .note { margin: 14px 0 0; font-size: 13px; color: var(--dim); max-width: 620px; }
+
+  /* ---- Icerik ---- */
+  main { max-width: 1040px; margin: 0 auto; padding: 0 16px 64px; }
+  section { padding: 48px 0 8px; border-top: 1px solid var(--line); }
+  section:first-child { border-top: 0; }
+  h2 { font-size: 13px; letter-spacing: .3em; color: var(--amber); margin: 0 0 18px; font-weight: 700; }
+  .lead { font-size: 19px; max-width: 720px; margin: 0 0 12px; }
+  p { max-width: 720px; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; letter-spacing: .06em; }
+  .card p { margin: 0; color: var(--dim); font-size: 15px; }
+  .card .wake { display: block; font-size: 12px; color: var(--amber); letter-spacing: .1em; margin-bottom: 8px; }
+
+  figure { margin: 0; }
+  figure img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 4px; image-rendering: pixelated; }
+  figcaption { font-size: 13px; color: var(--dim); margin-top: 8px; }
+  .shots { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+
+  .keys { display: grid; gap: 8px 24px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 0; }
+  .keys div { display: flex; gap: 12px; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  kbd {
+    font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; min-width: 64px; text-align: center;
+    background: #151d1b; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 2px 8px;
+    color: var(--green);
+  }
+  .keys dd { margin: 0; color: var(--ink); }
+
+  ul.plain { padding-left: 18px; color: var(--dim); max-width: 720px; }
+  ul.plain li { margin: 6px 0; }
+  ul.plain b { color: var(--ink); font-weight: 600; }
+
+  footer { border-top: 1px solid var(--line); padding: 24px 16px 40px; text-align: center; color: var(--dim); font-size: 13px; }
+  footer .mono { color: var(--ink); }
+
+  @media (max-width: 600px) {
+    .hero { min-height: 92vh; padding-bottom: 40px; }
+    .osd .hide-sm { display: none; }
+    .btn { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { .rec::before { animation: none; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="osd mono">
+    <span class="rec" data-en="REC · CAM 01 · GROUND FLOOR">REC · KAM 01 · ZEMİN KAT</span>
+    <span class="osd-right">
+      <span class="hide-sm" id="clock">22:00</span>
+      <button class="lang mono" id="lang" type="button">EN</button>
+    </span>
+  </div>
+  <div class="hero-inner">
+    <p class="series mono" data-en="MÜHÜR SECURITY · EPISODE 1">MÜHÜR GÜVENLİK · BÖLÜM 1</p>
+    <h1>NÖBET<span>OTOPARK</span></h1>
+    <div class="hazard" aria-hidden="true"></div>
+    <p class="tagline" data-en="Night shift at the Yıldız Covered Car Park. The last guard vanished on his fifth night. Your turn, Aras. The night is sealed.">Yıldız Kapalı Otoparkı'nda gece vardiyası. Önceki bekçi beşinci gecesinde kayboldu. Sıra sende, Aras. Gece mühürlüdür.</p>
+    <div class="actions">
+      <a class="btn primary" href="oyna/" data-en="PLAY IN BROWSER">TARAYICIDA OYNA</a>
+      <a class="btn" id="download" href="indir/Otopark.zip" download hidden><span data-en="DOWNLOAD FOR WINDOWS">WINDOWS İÇİN İNDİR</span> <small id="size"></small></a>
+    </div>
+    <p class="note" data-en="Runs in your browser, nothing to install. The game (about 16 MB) downloads once and opens from the cache next time. Your save stays in this browser.">Oyun tarayıcında çalışır, kurulum yok. Yaklaşık 16 MB bir kez iner, sonraki açılışta önbellekten gelir. Kaydın bu tarayıcıda tutulur.</p>
+  </div>
+</header>
+
+<main>
+  <section>
+    <h2 data-en="STORY">HİKÂYE</h2>
+    <p class="lead" data-en="The car park was built on the foundations of the Selvi Asylum, which burned down in 1994. From 10 PM to 6 AM you are alone.">1994'te yanan Selvi Sinir Hastanesi'nin temeline kurulan otoparkta gece 22:00'den sabah 06:00'ya kadar yalnızsın.</p>
+    <p data-en="Let the cars in, read the plates, fix the failing lights, cameras and fuses. But some customers wear masks. Nevin at dispatch writes to your computer; the notes in Hakan's notebook show you the way. Survive five nights and your contract is over.">Araçları içeri al, plakaları oku, bozulan ışıkları, kameraları ve sigortaları onar. Ama bazı müşteriler maske takıyor. Merkez'deki Nevin bilgisayarına mesaj atıyor; Hakan'ın defterindeki notlar sana yol gösteriyor. Beş gece dayanırsan sözleşmen biter.</p>
+  </section>
+
+  <section>
+    <h2 data-en="WHAT YOU'RE UP AGAINST">KARŞINDAKİLER</h2>
+    <div class="grid">
+      <div class="card">
+        <span class="wake mono" data-en="WAKES WHEN THE CAMERAS GO DOWN">KAMERALAR KAPANINCA UYANIR</span>
+        <h3 data-en="SERIAL KILLER">SERİ KATİL</h3>
+        <p data-en="Hockey mask, machete in hand. He hears your footsteps when you run and your breath in the locker. A locked door won't stop him.">Hokey maskesi, elinde pala. Koşarken adımlarını, dolapta nefesini duyar. Kilitli kapı onu durdurmaz.</p>
+      </div>
+      <div class="card">
+        <span class="wake mono" data-en="WAKES WHEN THE POWER GOES OUT">ELEKTRİK KESİLİNCE UYANIR</span>
+        <h3 data-en="PERVERT">SAPIK</h3>
+        <p data-en="Appears behind you in the dark. If he catches you he forces your head toward him; break free with the keys on screen.">Karanlıkta arkanda belirir. Yakalarsa başını zorla kendine çevirir; ekranda yazan tuşlarla kurtul.</p>
+      </div>
+      <div class="card">
+        <span class="wake mono" data-en="WAKES WHEN THE LIGHTS GO OUT">IŞIKLAR SÖNÜNCE UYANIR</span>
+        <h3 data-en="MADMAN">DELİ</h3>
+        <p data-en="Rushes at you screaming in a clown mask. Shine the flashlight in his face.">Palyaço maskesiyle çığlık atarak üstüne koşar. Feneri yüzüne tut.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-en="SCREENSHOTS">GÖRÜNTÜLER</h2>
+    <div class="shots">
+      <figure>
+        <img src="img/kapi_kontrolu.jpg" alt="" loading="lazy">
+        <figcaption data-en="Gate check: a silent car with blood on the front. Will you let it in?">Kapı kontrolü: korna çalmayan, önünde kan olan araç. İçeri alacak mısın?</figcaption>
+      </figure>
+      <figure>
+        <img src="img/guvenlik_odasi.jpg" alt="" loading="lazy">
+        <figcaption data-en="Security room: cameras, barriers, doors and the mailbox.">Güvenlik odası: kameralar, bariyerler, kapılar ve posta kutusu.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-en="CONTROLS">KONTROLLER</h2>
+    <dl class="keys">
+      <div><dt><kbd>W A S D</kbd></dt><dd data-en="Walk">Yürü</dd></div>
+      <div><dt><kbd>Shift</kbd></dt><dd data-en="Run">Koş</dd></div>
+      <div><dt><kbd>E</kbd></dt><dd data-en="Interact / sit at the computer">Etkileşim / bilgisayara otur</dd></div>
+      <div><dt><kbd>F</kbd></dt><dd data-en="Flashlight">Fener</dd></div>
+      <div><dt><kbd>C</kbd></dt><dd data-en="Hold your breath">Nefesini tut</dd></div>
+      <div><dt><kbd>1–5</kbd></dt><dd data-en="Select item">Eşya seç</dd></div>
+      <div><dt><kbd>Tab</kbd></dt><dd data-en="Leave the computer">Bilgisayardan kalk</dd></div>
+      <div><dt><kbd>Esc / P</kbd></dt><dd data-en="Pause">Duraklat</dd></div>
+    </dl>
+  </section>
+
+  <section>
+    <h2 data-en="PLAYING IN THE BROWSER">TARAYICIDA OYNARKEN</h2>
+    <ul class="plain">
+      <li data-en="&lt;b&gt;Keyboard and mouse required;&lt;/b&gt; it can't be played on phones and tablets. Chrome, Edge or Firefox recommended."><b>Klavye ve fare gerekir;</b> telefon ve tablette oynanmaz. Chrome, Edge ya da Firefox önerilir.</li>
+      <li data-en="&lt;b&gt;Click the screen:&lt;/b&gt; the mouse locks to the game. &lt;b&gt;Esc&lt;/b&gt; releases it and pauses the game."><b>Ekrana tıkla:</b> fare oyuna kilitlenir. <b>Esc</b> fareyi bırakır ve oyunu duraklatır.</li>
+      <li data-en="&lt;b&gt;Use C to hold your breath.&lt;/b&gt; Pressing W while holding Ctrl closes the browser tab."><b>Nefes tutmak için C'yi kullan.</b> Ctrl'ye basılıyken W'ye basmak tarayıcı sekmesini kapatır.</li>
+      <li data-en="&lt;b&gt;Your progress is saved&lt;/b&gt; every in-game hour, in this browser. Clearing site data deletes it."><b>İlerlemen kaydedilir:</b> her oyun saatinde, bu tarayıcıya. Site verilerini silersen kayıt da gider.</li>
+      <li data-en="&lt;b&gt;Language:&lt;/b&gt; Turkish or English, from Settings (the first time it follows your browser language)."><b>Dil:</b> Türkçe ya da İngilizce, Ayarlar'dan (ilk açılışta tarayıcının dilini izler).</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <p><span class="mono">NÖBET: Otopark</span> · <span data-en="Episode 1">Bölüm 1</span></p>
+</footer>
+
+<script>
+  // Ustteki kamera saati: 22:00dan baslar, 4 saniyede bir oyun dakikasi ilerler
+  (function () {
+    var el = document.getElementById('clock');
+    var start = Date.now();
+    function tick() {
+      var mins = (22 * 60 + Math.floor((Date.now() - start) / 4000)) % (24 * 60);
+      el.textContent = String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
+    }
+    tick();
+    setInterval(tick, 4000);
+  })();
+
+  // Dil: tarayici diline gore, dugmeyle degisir (secim bu tarayicida hatirlanir)
+  (function () {
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-en]'));
+    nodes.forEach(function (n) { n.setAttribute('data-tr', n.innerHTML); });
+    var saved = null;
+    try { saved = localStorage.getItem('nobet.site.dil'); } catch (e) {}
+    var english = saved ? saved === 'en' : (navigator.language || '').toLowerCase().indexOf('tr') !== 0;
+    var button = document.getElementById('lang');
+    function apply() {
+      nodes.forEach(function (n) { n.innerHTML = n.getAttribute(english ? 'data-en' : 'data-tr'); });
+      document.documentElement.lang = english ? 'en' : 'tr';
+      button.textContent = english ? 'TR' : 'EN';
+    }
+    button.onclick = function () {
+      english = !english;
+      try { localStorage.setItem('nobet.site.dil', english ? 'en' : 'tr'); } catch (e) {}
+      apply();
+    };
+    apply();
+  })();
+
+  // Windows paketi sunucuda varsa indirme dugmesi gorunur
+  fetch('indir/Otopark.zip', { method: 'HEAD' }).then(function (r) {
+    if (!r.ok) return;
+    document.getElementById('download').hidden = false;
+    var n = Number(r.headers.get('content-length'));
+    if (n > 0) document.getElementById('size').textContent = '(' + Math.round(n / 1048576) + ' MB)';
+  }).catch(function () {});
+</script>
+</body>
+</html>

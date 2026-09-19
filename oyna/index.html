@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>NÖBET: Otopark</title>
+<meta name="description" content="NÖBET: Otopark — yer altı otoparkında gece vardiyası. Tarayıcıda oyna.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0c0d'/%3E%3Ctext x='16' y='24' font-family='Arial' font-weight='bold' font-size='22' text-anchor='middle' fill='%23e0a83a'%3EN%3C/text%3E%3C/svg%3E">
+<style>
+  :root { --bg: #0b0c0d; --panel: #141618; --line: #2a2d30; --text: #d8d4c8; --dim: #8a877e; --amber: #e0a83a; --red: #c0392b; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+    font-family: "Segoe UI", Arial, sans-serif; }
+  #unity-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; background: #000; outline: none; }
+  .screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 16px; box-sizing: border-box; text-align: center; background: var(--bg); z-index: 2; }
+  .screen[hidden] { display: none; }
+  h1 { margin: 0; font-size: clamp(40px, 9vw, 84px); letter-spacing: .14em; color: var(--amber); font-weight: 700; }
+  h1 small { display: block; font-size: .28em; letter-spacing: .4em; color: var(--dim); margin-top: 10px; }
+  .bar { width: min(420px, 80vw); height: 6px; background: var(--panel); border: 1px solid var(--line); }
+  .bar div { height: 100%; width: 0; background: var(--amber); transition: width .2s; }
+  .status { font-size: 13px; letter-spacing: .12em; color: var(--dim); min-height: 1.2em; }
+  .note { max-width: 520px; font-size: 13px; line-height: 1.6; color: var(--dim); }
+  .note b { color: var(--text); font-weight: 600; }
+  .error { color: #e8a09a; }
+  button, .link { font: inherit; font-size: 14px; letter-spacing: .12em; color: var(--text); background: var(--panel);
+    border: 1px solid var(--line); padding: 12px 22px; cursor: pointer; text-decoration: none; }
+  button:hover, .link:hover { border-color: var(--amber); color: var(--amber); }
+  #back { position: fixed; top: 14px; left: 16px; z-index: 3; font-size: 12px; padding: 8px 12px; }
+  .rec { position: fixed; bottom: 14px; left: 16px; font-size: 12px; letter-spacing: .1em; color: var(--red); z-index: 3; }
+  .rec::before { content: "● "; animation: blink 1.2s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<canvas id="unity-canvas" tabindex="-1"></canvas>
+
+<div id="loading" class="screen">
+  <h1>NÖBET<small>OTOPARK</small></h1>
+  <div class="bar"><div id="progress"></div></div>
+  <div id="status" class="status"></div>
+  <div id="hint" class="note"></div>
+</div>
+
+<div id="mobile" class="screen" hidden>
+  <h1>NÖBET<small>OTOPARK</small></h1>
+  <div id="mobile-text" class="note"></div>
+  <button id="mobile-go"></button>
+</div>
+
+<a id="back" class="link" href="../" hidden></a>
+<div id="rec" class="rec">REC</div>
+
+<script>
+(function () {
+  var tr = (navigator.language || "").toLowerCase().indexOf("tr") === 0;
+  var T = tr ? {
+    loading: "YÜKLENİYOR", starting: "BAŞLIYOR", back: "‹ ANA SAYFA",
+    hint: "<b>Klavye ve fare gerekir.</b> Oyunda ekrana tıklayınca fare kilitlenir; <b>Esc</b> fareyi bırakır ve oyunu duraklatır. Kayıt bu tarayıcıda tutulur.",
+    mobile: "Bu oyun <b>klavye ve fare</b> ile oynanır; telefon ve tablette kontroller çalışmaz. Bir bilgisayardan aç.",
+    mobileGo: "YİNE DE AÇ",
+    webgl: "Tarayıcın WebGL 2 desteklemiyor. Chrome, Edge ya da Firefox'un güncel sürümüyle dene.",
+    failed: "Oyun yüklenemedi: "
+  } : {
+    loading: "LOADING", starting: "STARTING", back: "‹ HOME",
+    hint: "<b>Keyboard and mouse required.</b> Click the screen in game to lock the mouse; <b>Esc</b> releases it and pauses. Your save stays in this browser.",
+    mobile: "This game is played with <b>keyboard and mouse</b>; the controls don't work on phones and tablets. Open it on a computer.",
+    mobileGo: "OPEN ANYWAY",
+    webgl: "Your browser doesn't support WebGL 2. Try an up-to-date Chrome, Edge or Firefox.",
+    failed: "The game couldn't load: "
+  };
+  document.documentElement.lang = tr ? "tr" : "en";
+
+  var loading = document.getElementById("loading");
+  var status = document.getElementById("status");
+  var progress = document.getElementById("progress");
+  var canvas = document.getElementById("unity-canvas");
+  document.getElementById("hint").innerHTML = T.hint;
+  status.textContent = T.loading;
+
+  // Sitenin icindeyse (…/oyna/) ana sayfaya donus
+  var back = document.getElementById("back");
+  if (/\/oyna\/?(index\.html)?$/.test(location.pathname)) { back.textContent = T.back; back.hidden = false; }
+
+  function fail(text) {
+    status.innerHTML = '<span class="error">' + text + "</span>";
+  }
+
+  function start() {
+    var probe = document.createElement("canvas");
+    if (!probe.getContext("webgl2")) { fail(T.webgl); return; }
+    var test = /[?&]test=1/.test(location.search);
+    var config = {
+      arguments: [],
+      dataUrl: "Build/a414d2288192296be545ef887472cd75.data.unityweb",
+      frameworkUrl: "Build/ce8f0c52647199fddfc4404ec37224e2.framework.js.unityweb",
+      codeUrl: "Build/5728dcc5e926a3e656400e08c38d3bf8.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Muhur Guvenlik",
+      productName: "NOBET Otopark",
+      productVersion: "0.1.0",
+      // PS1 gorunumu zaten dusuk cozunurlukte cizilir: yuksek DPI ekranda fazladan is yapma
+      devicePixelRatio: 1,
+      showBanner: function (msg, type) { if (type === "error") fail(msg); else console.warn(msg); }
+    };
+    // Iki ekran kartli dizustulerde guclu karti iste (2 = "high-performance"); tarayici yine de
+    // tumlesik kartta kalabilir, o zaman Windows grafik ayarindan tarayiciya "Yuksek performans" verilmeli.
+    // Otomatik testte tuvalin pikselleri okunabilsin (preserveDrawingBuffer).
+    config.webglContextAttributes = { preserveDrawingBuffer: test, powerPreference: 2 };
+
+    var script = document.createElement("script");
+    script.src = "Build/03642c11b2edbb36c20527d70e0ff4c8.loader.js";
+    script.onload = function () {
+      createUnityInstance(canvas, config, function (p) {
+        progress.style.width = Math.round(p * 100) + "%";
+        status.textContent = (p >= 0.9 ? T.starting : T.loading) + "  " + Math.round(p * 100) + "%";
+      }).then(function (instance) {
+        window.unityInstance = instance;
+        loading.hidden = true;
+        back.hidden = true;
+        document.getElementById("rec").hidden = true;
+        canvas.focus();
+      }).catch(function (message) { fail(T.failed + message); });
+    };
+    script.onerror = function () { fail(T.failed + script.src); };
+    document.body.appendChild(script);
+  }
+
+  // Oyun odaktayken sayfa kaymasin (bosluk, oklar)
+  window.addEventListener("keydown", function (e) {
+    if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].indexOf(e.code) >= 0 && e.target === document.body) e.preventDefault();
+  });
+  canvas.addEventListener("click", function () { canvas.focus(); });
+
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    loading.hidden = true;
+    var mobile = document.getElementById("mobile");
+    document.getElementById("mobile-text").innerHTML = T.mobile;
+    var go = document.getElementById("mobile-go");
+    go.textContent = T.mobileGo;
+    go.onclick = function () { mobile.hidden = true; loading.hidden = false; start(); };
+    mobile.hidden = false;
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>
